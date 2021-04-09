@@ -582,7 +582,7 @@ void sr_handlearppacket(struct sr_instance  *sr,
         struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ipiface->ip, packet, len, interface);
         printf("sr_get_interface and sr_arpcache_queuereq done\n");        
 
-
+/*
         while (req)
         {
           printf("new request\n");
@@ -594,11 +594,11 @@ void sr_handlearppacket(struct sr_instance  *sr,
             packet1 = packet1->next;
           }
           req = req->next;
-        }
+        } */
         /* Generate correct ARP response
             // 1. Malloc a space to store the Ethernet and ARP header */
             char* Eth_Arp_Buf = (char*) malloc(sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t));
-            printf("Eth_Arp_Buf malloc done block: %s || bytes: %d\n", Eth_Arp_Buf, sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t));
+            printf("Eth_Arp_Buf malloc done block: %s \n", Eth_Arp_Buf);
             /* 2. Fill the ARP Header (Opcode, sender IP, Sender MAC, Target IP, Target MAC) */
             sr_arp_hdr_t* temp = (sr_arp_hdr_t*) (Eth_Arp_Buf + sizeof(sr_ethernet_hdr_t));
             temp->ar_hrd = ARP_hdr->ar_hrd;
