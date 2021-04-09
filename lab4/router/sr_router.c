@@ -573,8 +573,23 @@ void sr_handlearppacket(struct sr_instance  *sr,
       {
         /* insert the Sender MAC to the ARP cache */
         sr_arpcache_insert(&sr->cache,ARP_hdr->ar_sha,ARP_hdr->ar_sip);
-        /* find all pending packets and send out *** NOT FOR CHECKPOINT 1 & 2 ** *
-        // Generate correct ARP response
+
+
+        /* find all pending packets and send out *** NOT FOR CHECKPOINT 1 & 2 */
+        struct sr_if *ipiface = sr_get_interface(sr, interface);
+        struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ipiface->ip, packet, len, interface);
+
+        while (req)
+        {
+          struct sr_packet *packet1 = req->packets;
+          while (packet1) 
+          {
+            sr_send_packet(sr, packet1->buf, packet1->len, packet1->iface);
+            packet1 = packet1->next;
+          }
+          req = req->next;
+        }
+        /* Generate correct ARP response
             // 1. Malloc a space to store the Ethernet and ARP header */
             char* Eth_Arp_Buf = (char*) malloc(sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t));
             /* 2. Fill the ARP Header (Opcode, sender IP, Sender MAC, Target IP, Target MAC) */
@@ -604,6 +619,24 @@ void sr_handlearppacket(struct sr_instance  *sr,
         /* Send ARP response back to the Sender */
         sr_send_packet(sr,(uint8_t*) Eth_Arp_Buf,sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t),interface);
       }  
+      else if(ntohs(ARP_hdr->ar_op) == arp_op_reply)
+      {
+        sr_arpcache_insert(&sr->cache,ARP_hdr->ar_tha,ARP_hdr->ar_tip); 
+
+        struct sr_if *ipiface = sr_get_interface(sr, interface);
+        struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ipiface->ip, packet, len, interface);
+
+        while (req)
+        {
+          struct sr_packet *packet1 = req->packets;
+          while (packet1) 
+          {
+            sr_send_packet(sr, packet1->buf, packet1->len, packet1->iface);
+            packet1 = packet1->next;
+          }
+          req = req->next;
+        }
+      }
   }
 
   printf("*** -> Received packet of length %d \n",len);
