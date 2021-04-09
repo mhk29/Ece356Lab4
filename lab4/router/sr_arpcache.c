@@ -25,21 +25,32 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
     time_t now = time(NULL); 
     /* 1: Check if larger than 1.0s, if not just return */
     /*struct sr_arpreq* next = req->next;*/
-    if (difftime(now, req->sent)>1.0) 
+    if (difftime(now, req->sent)>=1.0) 
     {
         /*2: Check if ARP request has been sent >= 5 times */
         if(req->times_sent >= 5) 
         {
-            struct sr_packet *packet;
-            for (packet = req->packets; packet!= NULL; packet = packet-> next)
+            struct sr_packet *packetstr = req->packets;
+            while(packetstr)
             {
                 /* routing table request, get interface from there; need to look up destination of icmp packet 
                 that's what helps us get the actual interface */
 
+                uint8_t *packet = packetstr->buf;
                 sr_ethernet_hdr_t *eth_head = (sr_ethernet_hdr_t*) (packet);
-                sr_ip_hdr_t *ip_head = (sr_ip_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
-                struct sr_rt *in_table = sr_rt_calc(sr, ip_head->ip_dst);
-                char *interface = in_table->interface;
+                sr_arp_hdr_t *arp_head = (sr_arp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
+                struct sr_if* o_interface = sr_get_interface(sr,packet->iface);
+                uint32_t source_ip = o_interface->ip;
+                uint32_t dest_ip = req->ip;
+
+                struct sr_rt *in_table = sr_rt_calc(sr, dest_ip);
+                if (!in_table)
+                {
+                    printf("not in table sr_handle_arpreq\n");
+                    packetstr = packetstr->next;
+                    continue;
+                }
+                char *interface = in_table->interface; 
 
                 /*2a: send DEST_HOST_UNREACHABLE ICMP Type 3, Code 1 packet back to sender*/
                 printf("Type 3: DEST_HOST_UNREACHABLE Packet\n");
@@ -50,8 +61,7 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
                 sr_ip_hdr_t *send_ip_head = (sr_ip_hdr_t*) (send_icmp + sizeof(sr_ethernet_hdr_t));
                 sr_icmp_t3_hdr_t *send_icmp_head = (sr_icmp_t3_hdr_t*) (send_icmp + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
 
-                struct sr_if *o_interface = sr_get_interface(sr, interface);
-                uint32_t source_ip = o_interface->ip;
+                /*struct sr_if *o_interface = sr_get_interface(sr, interface); */
                     
                 /* Prepare ICMP Header */
                 memcpy(send_icmp_head->data, ip_head, 28 * sizeof(uint8_t)); 
@@ -65,7 +75,7 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
                 /* Prepare IP Header */
                 memcpy(send_ip_head, ip_head, sizeof(sr_ip_hdr_t)); 
                 send_ip_head->ip_src = source_ip;
-                send_ip_head->ip_dst = ip_head->ip_src;
+                send_ip_head->ip_dst = dest_ip;
                 send_ip_head->ip_ttl = 100; /* 64 == INIT_TTL */
                 send_ip_head->ip_p = 1; /* 1 == ip_protocol_icmp */
                 send_ip_head->ip_len = htons(outgoing_len - sizeof(sr_ethernet_hdr_t));
@@ -92,7 +102,10 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
 
                 /*2b: destroy ARP request*/
                 sr_arpreq_destroy(&(sr->cache), req);
-        
+                
+                /* get next packet */
+                packetstr = packetstr->next;
+
             }
             
         } 
@@ -104,7 +117,8 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
             req->sent = now;
 
             /* packet from the packet list */
-            struct sr_packet *packet = req->packets;
+            struct sr_packet *packetstr = req->packets;
+            uint8_t *packet = packetstr->buf;
             sr_arp_hdr_t *arp_head = (sr_arp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
 
             /*3b: updates the times_sent and current send time*/
@@ -123,8 +137,8 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
             temp->ar_pro = 0x0806; /* 0x0800 ARP_hdr->ar_pro*/
             temp->ar_hln = 6; /* ARP_hdr->ar_hln*/
             temp->ar_pln = 4; /* ARP_hdr->ar_pln */
-            temp->ar_op  = 1; /* htons(arp_op_request) */
-            memcpy(temp->ar_tha,arp_head->ar_sha,sizeof(arp_head->ar_sha));
+            temp->ar_op  = 1; /* htons(arp_op_request) == 0x0001 */
+            temp->ar_tha = 0xff;
             temp->ar_tip = req->ip; /* arp_head->ar_sip */
             /* get interface struct */
             /* interface is the same as the interface in the packet */
@@ -133,8 +147,9 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
             temp->ar_sip = intface->ip;
             /* 3. Fill Ethernet Header (Source MAC, Dest MAC, Ethernet type) */
             sr_ethernet_hdr_t* temp2 = (sr_ethernet_hdr_t*) Eth_Arp_Buf;
-            sr_ethernet_hdr_t *ethernet_hdr = (sr_ethernet_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
+            sr_ethernet_hdr_t *ethernet_hdr = (sr_ethernet_hdr_t*) (packet);
 
+            struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_head->ip_src);
             /* Set manually */
             memcpy(temp2->ether_dhost,ethernet_hdr->ether_shost,sizeof(ethernet_hdr->ether_shost));
             memcpy(temp2->ether_shost,intface->addr,sizeof(intface->addr));
