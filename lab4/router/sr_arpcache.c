@@ -11,8 +11,7 @@
 #include "sr_if.h"
 #include "sr_protocol.h"
 #include "sr_rt.h"
-
-#include "sr_router.c" /* consider removing if declarations moved to headers */
+#include "sr_utils.h"
 
 /* 
   This function gets called every second. For each request sent out, we keep
@@ -37,6 +36,7 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
                 /* routing table request, get interface from there; need to look up destination of icmp packet 
                 that's what helps us get the actual interface */
 
+                sr_ethernet_hdr_t *eth_head = (sr_ethernet_hdr_t*) (packet);
                 sr_ip_hdr_t *ip_head = (sr_ip_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
                 struct sr_rt *in_table = sr_rt_calc(sr, ip_head->ip_dst);
                 char *interface = in_table->interface;
@@ -45,7 +45,7 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
                 printf("Type 3: DEST_HOST_UNREACHABLE Packet\n");
                 unsigned int outgoing_len = sizeof(sr_ethernet_hdr_t) + ntohs(ip_head->ip_len);
                 uint8_t *send_icmp = (uint8_t*) malloc(outgoing_len);
-                printf("send_icmp malloc done block: %d || bytes: %d\n", send_icmp, outgoing_len);
+                printf("send_icmp malloc done block: %s || bytes: %d\n", send_icmp, outgoing_len);
                 sr_ethernet_hdr_t *send_ethernet_head = (sr_ethernet_hdr_t*) (send_icmp);        
                 sr_ip_hdr_t *send_ip_head = (sr_ip_hdr_t*) (send_icmp + sizeof(sr_ethernet_hdr_t));
                 sr_icmp_t3_hdr_t *send_icmp_head = (sr_icmp_t3_hdr_t*) (send_icmp + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
@@ -78,7 +78,7 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
                 struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_head->ip_src);
 
                 memcpy(send_ethernet_head->ether_dhost, arp_entry->mac, sizeof(arp_entry->mac));
-                memcpy(send_ethernet_head->ether_shost, t_iface->addr, sizeof(t_iface->addr));
+                memcpy(send_ethernet_head->ether_shost, o_interface->addr, sizeof(o_interface->addr));
                 send_ethernet_head->ether_type = eth_head->ether_type;
 
                 print_hdr_eth((uint8_t *)send_ethernet_head);
@@ -111,11 +111,11 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
             /* / *** All info is in the received input packet. Lookup source MAC in sr_if struct of outgoing interface** */
             
             /* outgoing interface so this has our info in it */
-            struct sr_if* intface = sr_get_interface(sr,packet->interface);
+            struct sr_if* intface = sr_get_interface(sr,packet->iface);
 
             /* Generate correct ARP response */
             /* 1. Malloc a space to store the Ethernet and ARP header */
-            char* Eth_Arp_Buf = (char*) malloc(sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t));
+            uint8_t* Eth_Arp_Buf = (uint8_t*) malloc(sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t));
             /* 2. Fill the ARP Header (Opcode, sender IP, Sender MAC, Target IP, Target MAC) */
             
             sr_arp_hdr_t* temp = (sr_arp_hdr_t*) (Eth_Arp_Buf + sizeof(sr_ethernet_hdr_t));
@@ -133,13 +133,15 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
             temp->ar_sip = intface->ip;
             /* 3. Fill Ethernet Header (Source MAC, Dest MAC, Ethernet type) */
             sr_ethernet_hdr_t* temp2 = (sr_ethernet_hdr_t*) Eth_Arp_Buf;
+            sr_ethernet_hdr_t *ethernet_hdr = (sr_ethernet_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
+
             /* Set manually */
             memcpy(temp2->ether_dhost,ethernet_hdr->ether_shost,sizeof(ethernet_hdr->ether_shost));
             memcpy(temp2->ether_shost,intface->addr,sizeof(intface->addr));
             temp2->ether_type = htons(ethertype_arp);
 
 
-            sr_send_packet(sr,Eth_Arp_Buf,sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t),intface);
+            sr_send_packet(sr,Eth_Arp_Buf,sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t),packet->iface);
             free(Eth_Arp_Buf);
         }
     }
@@ -152,7 +154,7 @@ void sr_arpcache_sweepreqs(struct sr_instance *sr)
     if not larger than 1sec, return*/
     struct sr_arpreq *req;
     struct sr_arpreq *next = NULL;
-    for (req = sr->cache->requests; req != NULL; req = next) 
+    for (req = sr->cache.requests; req != NULL; req = next) 
     {
         next = req->next;
         sr_handle_arpreq(req, sr);

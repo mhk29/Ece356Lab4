@@ -24,11 +24,6 @@
 #include "vnscommand.h"
 #include <string.h>
 
-void sr_handleippacket(struct sr_instance *, uint8_t *, unsigned int, char *);
-void sr_handlearppacket(struct sr_instance *, uint8_t *, unsigned int, char *);
-struct sr_rt *sr_rt_calc(struct sr_instance *sr, uint32_t destination_ip);
-
-
 /*---------------------------------------------------------------------
  * Method: sr_init(void)
  * Scope:  Global
