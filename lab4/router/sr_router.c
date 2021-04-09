@@ -568,22 +568,28 @@ void sr_handlearppacket(struct sr_instance  *sr,
   /* ARP packet */
   if(ntohs(ethernet_hdr->ether_type) == ethertype_arp) 
   {
+      printf("ARP Packet ethertype\n");
       sr_arp_hdr_t* ARP_hdr = (sr_arp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
       if(ntohs(ARP_hdr->ar_op) == arp_op_request) /* if ARP Request */
       {
+        printf("ARP Request\n");
         /* insert the Sender MAC to the ARP cache */
         sr_arpcache_insert(&sr->cache,ARP_hdr->ar_sha,ARP_hdr->ar_sip);
-
+        printf("sr_arpcache_insert\n");        
 
         /* find all pending packets and send out *** NOT FOR CHECKPOINT 1 & 2 */
         struct sr_if *ipiface = sr_get_interface(sr, interface);
         struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ipiface->ip, packet, len, interface);
+        printf("sr_get_interface and sr_arpcache_queuereq done\n");        
+
 
         while (req)
         {
+          printf("new request\n");
           struct sr_packet *packet1 = req->packets;
           while (packet1) 
           {
+            printf("new packet\n");
             sr_send_packet(sr, packet1->buf, packet1->len, packet1->iface);
             packet1 = packet1->next;
           }
@@ -592,18 +598,17 @@ void sr_handlearppacket(struct sr_instance  *sr,
         /* Generate correct ARP response
             // 1. Malloc a space to store the Ethernet and ARP header */
             char* Eth_Arp_Buf = (char*) malloc(sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t));
+            printf("Eth_Arp_Buf malloc done block: %s || bytes: %d\n", Eth_Arp_Buf, sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t));
             /* 2. Fill the ARP Header (Opcode, sender IP, Sender MAC, Target IP, Target MAC) */
             sr_arp_hdr_t* temp = (sr_arp_hdr_t*) (Eth_Arp_Buf + sizeof(sr_ethernet_hdr_t));
-            /* Set each field manually first four are the same */
             temp->ar_hrd = ARP_hdr->ar_hrd;
             temp->ar_pro = ARP_hdr->ar_pro;
             temp->ar_hln = ARP_hdr->ar_hln;
             temp->ar_pln = ARP_hdr->ar_pln;
-            /* these are different down here */
             temp->ar_op  = htons(arp_op_reply);
             memcpy(temp->ar_tha,ARP_hdr->ar_sha,sizeof(ARP_hdr->ar_sha));
             temp->ar_tip = ARP_hdr->ar_sip;
-            /* end difference */
+            print_hdr_arp((uint8_t *)temp);
             /* get interface struct */
             struct sr_if* intface = sr_get_interface(sr,interface);
             /*continue filling ARP*/
@@ -615,22 +620,32 @@ void sr_handlearppacket(struct sr_instance  *sr,
             memcpy(temp2->ether_dhost,ethernet_hdr->ether_shost,sizeof(ethernet_hdr->ether_shost));
             memcpy(temp2->ether_shost,intface->addr,sizeof(intface->addr));
             temp2->ether_type = htons(ethertype_arp);
+            print_hdr_eth((uint8_t *)temp2);
+
             /* / *** All info is in the received input packet. Lookup source MAC in sr_if struct of outgoing interface** */
         /* Send ARP response back to the Sender */
         sr_send_packet(sr,(uint8_t*) Eth_Arp_Buf,sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t),interface);
+        printf("sent packet\n");
+        free(Eth_Arp_Buf);
+        printf("freed Eth_Arp_Buf\n");
       }  
       else if(ntohs(ARP_hdr->ar_op) == arp_op_reply)
       {
+        printf("ARP Reply\n");
         sr_arpcache_insert(&sr->cache,ARP_hdr->ar_tha,ARP_hdr->ar_tip); 
+        printf("sr_arpcache_insert\n");        
 
         struct sr_if *ipiface = sr_get_interface(sr, interface);
         struct sr_arpreq *req = sr_arpcache_queuereq(&sr->cache, ipiface->ip, packet, len, interface);
+        printf("sr_get_interface and sr_arpcache_queuereq done\n");        
 
         while (req)
         {
+          printf("new request\n");
           struct sr_packet *packet1 = req->packets;
           while (packet1) 
           {
+            printf("new packet\n");
             sr_send_packet(sr, packet1->buf, packet1->len, packet1->iface);
             packet1 = packet1->next;
           }

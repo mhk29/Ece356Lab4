@@ -27,12 +27,15 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
     /*struct sr_arpreq* next = req->next;*/
     if (difftime(now, req->sent)>=1.0) 
     {
+        printf("difftime(now, req->sent)>=1.0\n");
         /*2: Check if ARP request has been sent >= 5 times */
         if(req->times_sent >= 5) 
         {
+            printf("req->times_sent >= 5\n");
             struct sr_packet *packetstr = req->packets;
             while(packetstr)
             {
+                printf("new packetstr\n");
                 /* routing table request, get interface from there; need to look up destination of icmp packet 
                 that's what helps us get the actual interface */
 
@@ -40,6 +43,7 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
                 sr_ethernet_hdr_t *eth_head = (sr_ethernet_hdr_t*) (packet);
                 sr_ip_hdr_t *ip_head = (sr_ip_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t));
                 struct sr_rt *in_table = sr_rt_calc(sr, ip_head->ip_dst);
+                printf("headers retrieved\n");
 
                 if (!in_table)
                 {
