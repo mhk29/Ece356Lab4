@@ -254,7 +254,6 @@ void sr_handleippacket(struct sr_instance  *sr,
       send_ip_head->ip_sum = 0;
       send_ip_head->ip_sum = cksum(send_ip_head, ip_len);
 
-
       print_hdr_ip((uint8_t *)send_ip_head);
 
       /* Step 2bi2e: Prepare Ethernet Header*/
@@ -327,7 +326,16 @@ void sr_handleippacket(struct sr_instance  *sr,
       /* Step 2bii2e: Prepare Ethernet Header */
       struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_head->ip_src);  
 
-      memcpy(send_ethernet_head->ether_dhost, arp_entry->mac, sizeof(o_interface->addr));
+      if (arp_entry) 
+      {      
+        memcpy(send_ethernet_head->ether_dhost, arp_entry->mac, sizeof(o_interface->addr));
+        free(arp_entry); 
+      }
+      else
+      {
+        memcpy(send_ethernet_head->ether_dhost, o_interface->addr, sizeof(o_interface->addr));
+      }
+
       memcpy(send_ethernet_head->ether_shost, t_iface->addr, sizeof(t_iface->addr));
       send_ethernet_head->ether_type = eth_head->ether_type;
 
@@ -337,7 +345,6 @@ void sr_handleippacket(struct sr_instance  *sr,
       sr_send_packet(sr, send_icmp, outgoing_len, interface);
       
       /* Free and Return */
-      free(arp_entry); 
       free(send_icmp);
       return;
 
