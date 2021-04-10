@@ -258,17 +258,17 @@ void sr_handleippacket(struct sr_instance  *sr,
 
       /* Step 2bi2e: Prepare Ethernet Header*/
       /* Change here since  */ 
-      /*
+      
       struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_head->ip_src);
 
       memcpy(send_ethernet_head->ether_dhost, arp_entry->mac, sizeof(arp_entry->mac));
       memcpy(send_ethernet_head->ether_shost, t_iface->addr, sizeof(t_iface->addr));
 
-      send_ethernet_head->ether_type = eth_head->ether_type; */
-      memcpy(send_ethernet_head->ether_dhost, o_interface->addr, sizeof(o_interface->addr));
+      send_ethernet_head->ether_type = eth_head->ether_type; 
+      /*memcpy(send_ethernet_head->ether_dhost, o_interface->addr, sizeof(o_interface->addr));
       memcpy(send_ethernet_head->ether_shost, eth_head->ether_shost, sizeof(eth_head->ether_shost));
 
-      send_ethernet_head->ether_type = eth_head->ether_type;
+      send_ethernet_head->ether_type = eth_head->ether_type; */
       
       print_hdr_eth((uint8_t *)send_ethernet_head);
 
@@ -276,7 +276,7 @@ void sr_handleippacket(struct sr_instance  *sr,
       sr_send_packet(sr, send_icmp, outgoing_len, interface);
       
       /* Free and Return */
-      /* free(arp_entry); */
+      free(arp_entry); 
       free(send_icmp);
       return;
 
