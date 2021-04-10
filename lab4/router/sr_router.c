@@ -367,9 +367,11 @@ void sr_handleippacket(struct sr_instance  *sr,
       sr_ethernet_hdr_t *send_ethernet_head = (sr_ethernet_hdr_t*) (send_icmp);        
       sr_ip_hdr_t *send_ip_head = (sr_ip_hdr_t*) (send_icmp + sizeof(sr_ethernet_hdr_t));
       sr_icmp_t11_hdr_t *send_icmp_head = (sr_icmp_t11_hdr_t*) (send_icmp + sizeof(sr_ethernet_hdr_t) + sizeof(sr_ip_hdr_t));
+      printf("headers made\n");
 
       struct sr_if *o_interface = sr_get_interface(sr, interface);
       uint32_t source_ip = o_interface->ip;
+      printf("outgoing interface and source_ip gotten\n");
 
       /* Step 2cic: Prepare ICMP Header */
       /* Note the below line is different from above, uses ip_head
@@ -380,6 +382,7 @@ void sr_handleippacket(struct sr_instance  *sr,
       send_icmp_head->icmp_type = 11;
       send_icmp_head->icmp_sum = 0;
       send_icmp_head->icmp_sum = cksum(send_icmp_head, icmp_len);
+      print_hdr_icmp((uint8_t *)send_icmp_head);
 
       /* Step 2cid: Prepare IP Header */
       memcpy(send_ip_head, ip_head, sizeof(sr_ip_hdr_t)); 
@@ -392,6 +395,8 @@ void sr_handleippacket(struct sr_instance  *sr,
       send_ip_head->ip_sum = 0;
       send_ip_head->ip_sum = cksum(send_ip_head, ip_len);
 
+      print_hdr_ip((uint8_t *)send_ip_head);
+
       /* Step 2cie: Prepare Ethernet Header */
       struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_head->ip_src);
 
@@ -400,8 +405,6 @@ void sr_handleippacket(struct sr_instance  *sr,
       send_ethernet_head->ether_type = eth_head->ether_type;
 
       print_hdr_eth((uint8_t *)send_ethernet_head);
-      print_hdr_ip((uint8_t *)send_ip_head);
-      print_hdr_icmp((uint8_t *)send_icmp_head);
 
       /* Step 2cif: Send back to Sender*/
       sr_send_packet(sr, send_icmp, outgoing_len, interface);
