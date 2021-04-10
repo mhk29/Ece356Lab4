@@ -325,7 +325,8 @@ void sr_handleippacket(struct sr_instance  *sr,
 
       /* Step 2bii2e: Prepare Ethernet Header */
       struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_head->ip_src);  
-
+      printf("arp_entry %s\n", arp_entry);
+      
       if (arp_entry) 
       {      
         memcpy(send_ethernet_head->ether_dhost, arp_entry->mac, sizeof(o_interface->addr));
