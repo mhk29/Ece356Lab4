@@ -325,9 +325,9 @@ void sr_handleippacket(struct sr_instance  *sr,
       print_hdr_ip((uint8_t *)send_ip_head);
 
       /* Step 2bii2e: Prepare Ethernet Header */
-      struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_head->ip_src);
+      /* struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_head->ip_src);  */
 
-      memcpy(send_ethernet_head->ether_dhost, arp_entry->mac, sizeof(arp_entry->mac));
+      memcpy(send_ethernet_head->ether_dhost, o_interface->addr, sizeof(o_interface->addr));
       memcpy(send_ethernet_head->ether_shost, t_iface->addr, sizeof(t_iface->addr));
       send_ethernet_head->ether_type = eth_head->ether_type;
 
@@ -459,9 +459,9 @@ void sr_handleippacket(struct sr_instance  *sr,
       print_hdr_ip((uint8_t *)send_ip_head);
 
       /* Step 2ciie: Prepare Ethernet Header */
-      struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_head->ip_src);
+      /* struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), ip_head->ip_src);  */
 
-      memcpy(send_ethernet_head->ether_dhost, arp_entry->mac, sizeof(arp_entry->mac));
+      memcpy(send_ethernet_head->ether_dhost, o_interface->addr, sizeof(o_interface->addr));
       memcpy(send_ethernet_head->ether_shost, t_iface->addr, sizeof(t_iface->addr));
       send_ethernet_head->ether_type = eth_head->ether_type;
 
