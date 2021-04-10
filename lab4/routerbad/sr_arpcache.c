@@ -107,10 +107,8 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
                 
                 /* get next packet */
                 packetstr = packetstr->next;
-
             }
-            sr_arpreq_destroy(&(sr->cache), req);
-
+        sr_arpreq_destroy(&(sr->cache), req);
         } 
         /*3: If ARP request has been sent <5 times*/
         else if(req->times_sent < 5) 
@@ -118,22 +116,17 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
             /*3a: send ARP request packet again*/
             req->times_sent = req->times_sent +1;
             req->sent = now;
-
             /* packet from the packet list */
             struct sr_packet *packetstr = req->packets;
   /*          sr_arp_hdr_t *arp_head = (sr_arp_hdr_t*) (packet + sizeof(sr_ethernet_hdr_t)); */
-
             /*3b: updates the times_sent and current send time*/
             /* / *** All info is in the received input packet. Lookup source MAC in sr_if struct of outgoing interface** */
-            
             /* outgoing interface so this has our info in it */
             struct sr_if* intface = sr_get_interface(sr,packetstr->iface);
-
             /* Generate correct ARP response */
             /* 1. Malloc a space to store the Ethernet and ARP header */
-            uint8_t* Eth_Arp_Buf = (uint8_t*) malloc(sizeof(sr_ethernet_hdr_t) + sizeof(sr_arp_hdr_t));
+            uint8_t* Eth_Arp_Buf = (uint8_t*) malloc(sizeof(sr_ethernet_hdr_t)+sizeof(sr_arp_hdr_t));
             /* 2. Fill the ARP Header (Opcode, sender IP, Sender MAC, Target IP, Target MAC) */
-            
             sr_arp_hdr_t* temp = (sr_arp_hdr_t*) (Eth_Arp_Buf + sizeof(sr_ethernet_hdr_t));
             temp->ar_hrd = htons(1); /* ARP_hdr->ar_hrd */  
             temp->ar_pro = htons(0x0800); /* 0x0800 ARP_hdr->ar_pro*/
@@ -150,13 +143,10 @@ void sr_handle_arpreq(struct sr_arpreq*  req,
             temp->ar_sip = intface->ip;
             /* 3. Fill Ethernet Header (Source MAC, Dest MAC, Ethernet type) */
             sr_ethernet_hdr_t* temp2 = (sr_ethernet_hdr_t*) Eth_Arp_Buf;
-
-            /*struct sr_arpentry *arp_entry = sr_arpcache_lookup(&(sr->cache), intface->ip); */
             /* Set manually */
-            memcpy(temp2->ether_dhost,0xff,6*sizeof(unsigned char));
+            memset(temp2->ether_dhost,0xff,6*sizeof(unsigned char));
             memcpy(temp2->ether_shost,intface->addr,sizeof(intface->addr));
             temp2->ether_type = htons(ethertype_arp);
-
 
             sr_send_packet(sr,Eth_Arp_Buf,sizeof(sr_arp_hdr_t)+sizeof(sr_ethernet_hdr_t),packetstr->iface);
             free(Eth_Arp_Buf);
