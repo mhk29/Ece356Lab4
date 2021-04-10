@@ -337,7 +337,7 @@ void sr_handleippacket(struct sr_instance  *sr,
       sr_send_packet(sr, send_icmp, outgoing_len, interface);
       
       /* Free and Return */
-      free(arp_entry);
+      /* free(arp_entry); */
       free(send_icmp);
       return;
 
@@ -471,7 +471,7 @@ void sr_handleippacket(struct sr_instance  *sr,
       sr_send_packet(sr, send_icmp, outgoing_len, interface);
       
       /* Free and Return */
-      free(arp_entry);
+      /* free(arp_entry); */
       free(send_icmp);
       return;
     }
